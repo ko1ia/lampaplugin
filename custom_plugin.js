@@ -41,71 +41,74 @@
 
 
 
+
 (function () {
     'use strict';
 
-    if (window.__lampaTorrentButtonAlwaysExpanded) return;
-    window.__lampaTorrentButtonAlwaysExpanded = true;
+    if (window.__lampaWatchOpensTorrents) return;
+    window.__lampaWatchOpensTorrents = true;
 
-    const style = document.createElement('style');
-    style.textContent = `
-        .full-start__button.lampa-torrent-expanded {
-            width: auto !important;
-            min-width: 0 !important;
-            max-width: none !important;
-            padding-left: 1.1em !important;
-            padding-right: 1.1em !important;
-            background: #fff !important;
-            color: #111 !important;
-            border-radius: 1em !important;
-            opacity: 1 !important;
+    function setup() {
+        if (!window.Lampa || !window.jQuery) return;
+
+        var $ = window.jQuery;
+
+        function changeButton() {
+            $('.open--menu').each(function () {
+                var button = $(this);
+
+                if (button.data('torrent-redirect')) return;
+
+                button.data('torrent-redirect', true);
+
+                // Убираем стандартное действие кнопки
+                button.off('hover:enter');
+
+                // Открываем штатный раздел торрентов
+                button.on('hover:enter', function () {
+                    var container = button.closest(
+                        '.full-start, .full-start-new, .full'
+                    );
+
+                    var torrent = container.find(
+                        '.view--torrent'
+                    ).first();
+
+                    if (!torrent.length) {
+                        torrent = $('.view--torrent').first();
+                    }
+
+                    if (torrent.length) {
+                        torrent.trigger('hover:enter');
+                    } else if (Lampa.Noty) {
+                        Lampa.Noty.show(
+                            'Кнопка торрентов не найдена'
+                        );
+                    }
+                });
+            });
         }
 
-        .lampa-torrent-expanded .full-start__button-title,
-        .lampa-torrent-expanded .full-start__button__title,
-        .lampa-torrent-expanded .full-start__button__text,
-        .lampa-torrent-expanded .full-start__button-text,
-        .lampa-torrent-expanded .full-start__button-name,
-        .lampa-torrent-expanded .full-start__button__name {
-            display: inline-block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            max-width: none !important;
-            width: auto !important;
-            transform: none !important;
+        changeButton();
+
+        if (Lampa.Listener) {
+            Lampa.Listener.follow('full', function (e) {
+                if (e.type === 'complite') {
+                    setTimeout(changeButton, 100);
+                }
+            });
         }
-    `;
+    }
 
-    document.head.appendChild(style);
-
-    function update() {
-        document.querySelectorAll(
-            '.full-start__button, .full-start__buttons .selector'
-        ).forEach(button => {
-            const label = (button.textContent || '').trim();
-
-            if (/^(торренты|torrents)$/i.test(label)) {
-                button.classList.add('lampa-torrent-expanded');
+    if (window.Lampa && window.jQuery) {
+        setup();
+    } else {
+        var timer = setInterval(function () {
+            if (window.Lampa && window.jQuery) {
+                clearInterval(timer);
+                setup();
             }
-        });
+        }, 500);
     }
-
-    let pending = false;
-
-    function schedule() {
-        if (pending) return;
-        pending = true;
-
-        requestAnimationFrame(() => {
-            pending = false;
-            update();
-        });
-    }
-
-    update();
-
-    new MutationObserver(schedule).observe(document.documentElement, {
-        childList: true,
-        subtree: true
-    });
 })();
+
